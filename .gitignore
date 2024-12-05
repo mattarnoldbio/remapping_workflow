@@ -1,0 +1,4 @@
+*.fasta
+.nextflow*
+results/
+work/
