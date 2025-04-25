@@ -12,7 +12,7 @@ include { CHECK_FASTQ_COMPRESSED      } from '../../modules/stenglein-lab/check_
  - filenames matchable using param fastq_pattern
  - in one or more directories specified by param input_fastq_dir
  */
-workflow MARSHALL_FASTQ {
+workflow MARSHAL_FASTQ {
 
  take:
  input_fastq_dir        // the path to a directory containing fastq file(s) or a comma-separated list of dirs
