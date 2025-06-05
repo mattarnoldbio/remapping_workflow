@@ -1,6 +1,8 @@
 include { PARSE_MAPPING_SAMPLESHEET   } from '../../subworkflows/stenglein-lab/parse_mapping_samplesheet'
 include { MARSHAL_FASTQ               } from '../../subworkflows/stenglein-lab/marshal_fastq'
 include { BOWTIE2_BUILD_ALIGN         } from '../../subworkflows/stenglein-lab/bowtie2_build_align'
+include { MAPPING_STATS               } from '../../subworkflows/stenglein-lab/mapping_stats'
+include { SAVE_OUTPUT_FILE            } from '../../modules/stenglein-lab/save_output_file/main'
 
 workflow REMAPPING_WORKFLOW {                                                    
 
@@ -24,7 +26,14 @@ workflow REMAPPING_WORKFLOW {
   def sort_bam = true
   BOWTIE2_BUILD_ALIGN (ch_mapping, save_unaligned, sort_bam)
 
+  def per_base_depth = true
+  MAPPING_STATS(BOWTIE2_BUILD_ALIGN.out.bam_fasta, per_base_depth)
+
+  // force this collected file to be saved to output dir
+  SAVE_OUTPUT_FILE(MAPPING_STATS.out.insert_sizes.collectFile(name: "all_insert_sizes.txt"){it[1]})
+
   ch_versions = ch_versions.mix ( BOWTIE2_BUILD_ALIGN.out.versions )
+
 
 }
 
