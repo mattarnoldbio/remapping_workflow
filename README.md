@@ -98,7 +98,9 @@ The pipeline requires three main inputs:
 
 ### Input fastq
 
-Input sequence data is assumed to be Illumina paired-end data in separate read1 and read2 files.  Single-end data should also work.  Files must be .gz compressed (names should end in `.fastq.gz`).
+Input sequence data should single-end or paired-end Illumina data.  Paired-end reads should be in separate read1 and read2 files. Files must be .gz compressed (names should end in `.fastq.gz`).  
+
+This pipeline uses bowtie2 to map reads to reference sequences so is not designed to work with long reads.  
 
 The expected names of the fastq files are defined by the parameter `fastq_pattern`, whose default value is defined in nextflow.config as `*_R[12]_*.fastq*`.  This pattern can be overridden on the nextflow command line using the `--fastq_pattern` parameter.
 
