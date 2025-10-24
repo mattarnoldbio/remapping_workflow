@@ -7,11 +7,10 @@ This is a nextflow workflow for remapping reads to sets of virus sequences.  In 
     - [Running test datasets](#Running-test-datasets)
     - [Running a specific version:](#Running-a-specific-version)
     - [Making sure that you are running the latest version](#Making-sure-that-you-are-running-the-latest-version)
-    - [Running in different computing environments](#Running-in-different-computing-environments)
     - [Running by cloning the pipeline's repository](#Running-by-cloning-the-pipeline-repository)
 - [Inputs](#Inputs)
     - [Input fastq](#Input-fastq)
-    - [Mapping samplesheet](#Metadata-file)
+    - [Mapping samplesheet](#Mapping-samplesheet)
     - [Reference sequence fasta files](#Reference-sequence-files).
 - [Outputs](#Outputs)
     - [Output directory](#Output-directory)
