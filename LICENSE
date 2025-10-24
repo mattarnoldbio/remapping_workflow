@@ -4,8 +4,8 @@ Copyright (c) Mark Stenglein
 
 This project includes code derived from nf-core modules:
 
-  https://github.com/nf-core/modules/tree/master/modules/nf-core/bowtie2
-  Copyright (c) Philip Ewels
+  https://github.com/nf-core/modules/
+  Copyright (c) Philip Ewels and nf-core contributors
 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
