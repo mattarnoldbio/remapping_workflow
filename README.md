@@ -142,7 +142,7 @@ Output files are placed by default in a `results` directory (or `test/results` w
 
 ```
 nextflow run stenglein-lab/remapping_worfklow ... --outdir some_other_results_directory_name
-
+```
 
 ## Configurable parameters
 
