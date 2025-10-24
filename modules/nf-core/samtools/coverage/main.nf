@@ -12,8 +12,8 @@ process SAMTOOLS_COVERAGE {
     tuple val(meta), path(input)
 
     output:
-    tuple val(meta), path("*.txt"), emit: coverage
-    path "versions.yml"           , emit: versions
+    tuple val(meta), path("*.coverage.txt"), emit: coverage
+    path "versions.yml"                    , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -25,7 +25,7 @@ process SAMTOOLS_COVERAGE {
     samtools \\
         coverage \\
         $args \\
-        -o ${prefix}.txt \\
+        -o ${prefix}.coverage.txt \\
         $input
 
     cat <<-END_VERSIONS > versions.yml

@@ -26,6 +26,7 @@ def parse_samplesheet(LinkedHashMap row) {
     return array
 }
 
+
 workflow PARSE_MAPPING_SAMPLESHEET {
     take:
     input // a tsv sample sheet containing two columns: sample_id and the path of a fasta file containing reference (virus) sequences 
@@ -39,5 +40,5 @@ workflow PARSE_MAPPING_SAMPLESHEET {
         .set { ch_sample_sheet }
 
     emit:
-    sample_sheet   = ch_sample_sheet
+    sample_sheet   = ch_sample_sheet  // [meta, refseq_fasta]
 }

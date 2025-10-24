@@ -13,8 +13,8 @@ process SAMTOOLS_STATS {
     tuple val(meta2), path(fasta)
 
     output:
-    tuple val(meta), path("*.stats"), emit: stats
-    path  "versions.yml"            , emit: versions
+    tuple val(meta), path("*.stats.txt"), emit: stats
+    path  "versions.yml"                , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -29,7 +29,7 @@ process SAMTOOLS_STATS {
         --threads ${task.cpus} \\
         ${reference} \\
         ${input} \\
-        > ${prefix}.stats
+        > ${prefix}.stats.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

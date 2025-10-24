@@ -1,14 +1,18 @@
-// include { SAMTOOLS_STATS                         } from '../../modules/nf-core/samtools/stats/main'
-// include { SAMTOOLS_COVERAGE                      } from '../../modules/nf-core/samtools/coverage/main'
-// include { SAMTOOLS_DEPTH                         } from '../../modules/nf-core/samtools/depth/main'
+include { SAMTOOLS_STATS                         } from '../../modules/nf-core/samtools/stats/main'
+include { SAMTOOLS_COVERAGE                      } from '../../modules/nf-core/samtools/coverage/main'
+include { SAMTOOLS_DEPTH                         } from '../../modules/nf-core/samtools/depth/main'
+include { PREPEND_TSV_WITH_ID as PREPEND_STATS_WITH_ID } from '../../modules/stenglein-lab/prepend_tsv_with_id'
+include { PREPEND_TSV_WITH_ID as PREPEND_COV_WITH_ID   } from '../../modules/stenglein-lab/prepend_tsv_with_id'
+include { PREPEND_TSV_WITH_ID as PREPEND_DEPTH_WITH_ID } from '../../modules/stenglein-lab/prepend_tsv_with_id'
 
 /*
   Calculate basic mapping summary statistics from bam
- */
+ */ 
+
 workflow MAPPING_STATS {
 
  take:
-  meta_bam_fasta  // [meta, bam, fasta]
+  bam_fasta       // [meta, bam, fasta]
   per_base_depth  // boolean: calculate per-base coverage depth values using samtools depth?
 
  main:
@@ -16,23 +20,27 @@ workflow MAPPING_STATS {
   // define some empty channels for keeping track of stuff
   ch_versions     = Channel.empty()                                               
 
+  // split up input channel into separate bam and fasta channels
+  bam          = bam_fasta.map{meta, bam, fasta -> [meta, bam]   }
+  genome_fasta = bam_fasta.map{meta, bam, fasta -> [meta, fasta] }
+
   // ------------------
   // samtools stats
   // ------------------
 
-  // split up input channel for nf-core samtools modules
-  // meta_bam_fasta.map{meta, bam, fasta -> [meta, bam]}.set{meta_bam}
-  // meta_bam_fasta.map{meta, bam, fasta -> [meta, fasta]}.set{meta_fasta}
-
-  SAMTOOLS_STATS(meta_bam_fasta)
+  SAMTOOLS_STATS(bam, genome_fasta)
   ch_versions = ch_versions.mix ( SAMTOOLS_STATS.out.versions )      
+
+  PREPEND_STATS_WITH_ID(SAMTOOLS_STATS.out.stats)
 
   // ------------------
   // samtools coverage
   // ------------------
 
-  SAMTOOLS_COVERAGE(meta_bam_fasta)
+  SAMTOOLS_COVERAGE(bam)
   ch_versions = ch_versions.mix ( SAMTOOLS_COVERAGE.out.versions )      
+
+  PREPEND_COV_WITH_ID(SAMTOOLS_COVERAGE.out.coverage)
 
   // ------------------
   // samtools depth
@@ -40,160 +48,30 @@ workflow MAPPING_STATS {
   // this outputs per-based coverage depth values
   // only run if requested to do so
 
-  ch_depth = Channel.empty()
+  ch_depth           = Channel.empty()
+  ch_prepended_depth = Channel.empty()
+
   if (per_base_depth) {
-    // the second null input is placeholder for a possible interval bedfile
-    SAMTOOLS_DEPTH(meta_bam_fasta)
-    ch_depth    = ch_depth.mix    ( SAMTOOLS_DEPTH.out.tsv )
+
+    SAMTOOLS_DEPTH(bam)
+    
+    // do these extra mix calls because possibility of empty channel  
+    ch_depth           = ch_depth.mix           ( SAMTOOLS_DEPTH.out.depth )
+
+    PREPEND_DEPTH_WITH_ID(SAMTOOLS_DEPTH.out.depth)
+
+    ch_prepended_depth = ch_prepended_depth.mix ( PREPEND_DEPTH_WITH_ID.out.prepended)
+
     ch_versions = ch_versions.mix ( SAMTOOLS_DEPTH.out.versions )      
   }
 
  emit: 
   versions      = ch_versions
   stats         = SAMTOOLS_STATS.out.stats
-  insert_sizes  = SAMTOOLS_STATS.out.insert_sizes
   coverage      = SAMTOOLS_COVERAGE.out.coverage
   depth         = ch_depth
+  prepended_stats    = PREPEND_STATS_WITH_ID.out.prepended
+  prepended_coverage = PREPEND_COV_WITH_ID.out.prepended
+  prepended_depth    = ch_prepended_depth
 
 }
-
-
-// from: https://github.com/nf-core/modules/blob/master/modules/nf-core/samtools/stats/main.nf
-process SAMTOOLS_STATS {
-    tag "$meta.id"
-    label 'process_single'
-
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/samtools:1.18--h50ea8bc_1' :
-        'biocontainers/samtools:1.18--h50ea8bc_1' }"
-
-    input:
-    tuple val(meta), path(input), path(fasta)
-
-    output:
-    tuple val(meta), path("*.stats"), emit: stats
-    tuple val(meta), path("*.insert_sizes.tsv"), emit: insert_sizes
-    path  "versions.yml"            , emit: versions
-
-    when:
-    task.ext.when == null || task.ext.when
-
-    script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    def reference = fasta ? "--reference ${fasta}" : ""
-
-    """
-    samtools \\
-        stats \\
-        --threads !{task.cpus} \\
-        ${reference} \\
-        ${input} \\
-        > ${prefix}.stats
-
-    # pull out insert sizes from mapping stats
-    grep ^IS ${prefix}.stats | cut -f 2- | awk '{print "${meta.id}" "\t" \$0}' > ${prefix}.insert_sizes.tsv
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//')
-    END_VERSIONS
-    """
-
-    stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    """
-    touch ${prefix}.stats
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//')
-    END_VERSIONS
-    """
-}
-
-process SAMTOOLS_COVERAGE {
-    tag "$meta.id"
-    label 'process_single'
-
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/samtools:1.18--h50ea8bc_1' :
-        'biocontainers/samtools:1.18--h50ea8bc_1' }"
-
-    input:
-    tuple val(meta), path(input), path(fasta)
-
-    output:
-    tuple val(meta), path("*.txt"), emit: coverage
-    path "versions.yml"           , emit: versions
-
-    when:
-    task.ext.when == null || task.ext.when
-
-    script:
-    def args   = task.ext.args   ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    """
-    samtools \\
-        coverage \\
-        $args \\
-        -o ${prefix}.coverage.txt \\
-        $input
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//' )
-    END_VERSIONS
-    """
-
-    stub:
-    def args   = task.ext.args   ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    """
-    touch ${prefix}.txt
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//' )
-    END_VERSIONS
-    """
-}
-
-process SAMTOOLS_DEPTH {
-    tag "$meta.id"
-    label 'process_low'
-
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/samtools:1.18--h50ea8bc_1' :
-        'biocontainers/samtools:1.18--h50ea8bc_1' }"
-
-    input:
-    tuple val(meta), path(bam), path(fasta)
-
-    output:
-    tuple val(meta), path("*.tsv"), emit: tsv
-    path "versions.yml"           , emit: versions
-
-    when:
-    task.ext.when == null || task.ext.when
-
-    script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    """
-    samtools \\
-        depth \\
-        --threads ${task.cpus-1} \\
-        $args \\
-        -o ${prefix}.depth.tsv \\
-        $bam
-
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        samtools: \$(echo \$(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*\$//')
-    END_VERSIONS
-    """
-}
-
-

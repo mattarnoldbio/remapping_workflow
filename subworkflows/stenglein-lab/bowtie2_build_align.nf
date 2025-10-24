@@ -1,3 +1,10 @@
+/*
+ * This process uses bowtie2 to map reads to a set of reference sequences
+ * 
+ * It is based on nf-core bowtie2 module code:
+ * https://github.com/nf-core/modules/tree/master/modules/nf-core/bowtie2/align
+ * https://github.com/nf-core/modules/tree/master/modules/nf-core/bowtie2/build
+ * */
 process BOWTIE2_BUILD_ALIGN {
     tag "$meta.id"
     label 'process_high'

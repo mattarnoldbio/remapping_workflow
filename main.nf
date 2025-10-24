@@ -1,10 +1,17 @@
 #!/usr/bin/env nextflow
 
-nextflow.enable.dsl=2
+include { REMAPPING_WORKFLOW   } from './subworkflows/stenglein-lab/remapping_workflow'
 
-include { REMAPPING_WORKFLOW } from './subworkflows/stenglein-lab/remapping_workflow'
+// main named workflow
+workflow MAIN_WORKFLOW {
 
-workflow {
-  main:
+    // main remapping workflow
     REMAPPING_WORKFLOW ()
 }
+
+// entry workflow
+// https://www.nextflow.io/docs/latest/reference/syntax.html#workflow
+workflow {
+    MAIN_WORKFLOW ()
+}
+

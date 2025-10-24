@@ -1,13 +1,22 @@
 include { PARSE_MAPPING_SAMPLESHEET   } from '../../subworkflows/stenglein-lab/parse_mapping_samplesheet'
 include { MARSHAL_FASTQ               } from '../../subworkflows/stenglein-lab/marshal_fastq'
 include { BOWTIE2_BUILD_ALIGN         } from '../../subworkflows/stenglein-lab/bowtie2_build_align'
+include { SPLIT_BAM_BY_REFSEQ         } from '../../subworkflows/stenglein-lab/split_bam_by_refseq'
 include { MAPPING_STATS               } from '../../subworkflows/stenglein-lab/mapping_stats'
-include { SAVE_OUTPUT_FILE            } from '../../modules/stenglein-lab/save_output_file/main'
+include { EXTRACT_INSERT_SIZES        } from '../../modules/stenglein-lab/extract_insert_sizes'
+include { QUANTIFY_STRAND_BIAS        } from '../../subworkflows/stenglein-lab/quantify_strand_bias'
+include { PROCESS_WORKFLOW_OUTPUT     } from '../../subworkflows/stenglein-lab/process_workflow_output'
 
-workflow REMAPPING_WORKFLOW {                                                    
+// these save consolidated tidy output files to results directory
+include { SAVE_OUTPUT_FILE as SAVE_COLLECTED_COVERAGE     } from '../../modules/stenglein-lab/save_output_file'
+include { SAVE_OUTPUT_FILE as SAVE_COLLECTED_STATS        } from '../../modules/stenglein-lab/save_output_file'
+include { SAVE_OUTPUT_FILE as SAVE_COLLECTED_DEPTH        } from '../../modules/stenglein-lab/save_output_file'
+include { SAVE_OUTPUT_FILE as SAVE_COLLECTED_INSERT_SIZES } from '../../modules/stenglein-lab/save_output_file'
+include { SAVE_OUTPUT_FILE as SAVE_COLLECTED_STRAND_BIAS  } from '../../modules/stenglein-lab/save_output_file'
 
-  // define some empty channels for keeping track of stuff
-  ch_versions     = Channel.empty()
+workflow REMAPPING_WORKFLOW {
+
+ main:
 
   MARSHAL_FASTQ(params.fastq_dir, params.fastq_pattern)
 
@@ -15,25 +24,69 @@ workflow REMAPPING_WORKFLOW {
 
   // pull out just sample ID (ignoring single-end vs not) 
   // so we can join just based on sample ID 
-  MARSHAL_FASTQ.out.reads.map{meta, reads -> [meta.id, meta, reads]}.set{reads_ch}
-  PARSE_MAPPING_SAMPLESHEET.out.sample_sheet.map{meta, index -> [meta.id, index]}.set{samplesheet_ch}
+  reads_ch       = MARSHAL_FASTQ.out.reads.map{meta, reads -> [meta.id, meta, reads]}
+  samplesheet_ch = PARSE_MAPPING_SAMPLESHEET.out.sample_sheet.map{meta, fasta -> [meta.id, fasta]}
 
   // drop just sample ID, bring back in original meta
-  reads_ch.join(samplesheet_ch).map{id, meta, reads, fasta -> [meta, reads, fasta] }.set{ch_mapping}
+  mapping_ch = reads_ch.join(samplesheet_ch).map{id, meta, reads, fasta -> [meta, reads, fasta] }
 
   // run bowtie2 and align
   def save_unaligned = false
   def sort_bam = true
-  BOWTIE2_BUILD_ALIGN (ch_mapping, save_unaligned, sort_bam)
+  BOWTIE2_BUILD_ALIGN (mapping_ch, save_unaligned, sort_bam)
 
-  def per_base_depth = true
-  MAPPING_STATS(BOWTIE2_BUILD_ALIGN.out.bam_fasta, per_base_depth)
+  // optionally extract insert sizes from mapped reads
+  ch_insert_sizes = Channel.empty() 
+  if (params.tabulate_insert_sizes) {
 
-  // force this collected file to be saved to output dir
-  SAVE_OUTPUT_FILE(MAPPING_STATS.out.insert_sizes.collectFile(name: "all_insert_sizes.txt"){it[1]})
+    // split up bam files into per-ref-seq bam files
+    // samtools stats quantifies insert sizes but not per refseq
+    SPLIT_BAM_BY_REFSEQ(BOWTIE2_BUILD_ALIGN.out.bam_fasta)
 
-  ch_versions = ch_versions.mix ( BOWTIE2_BUILD_ALIGN.out.versions )
+    // extract insert sizes from bam using samtools stats
+    EXTRACT_INSERT_SIZES(SPLIT_BAM_BY_REFSEQ.out.per_refseq_bam)
 
+    ch_insert_sizes = ch_insert_sizes.mix(EXTRACT_INSERT_SIZES.out.insert_sizes)
+  }
+
+  // run optional workflow to quantify strand bias
+  ch_strand_bias = Channel.empty()
+  if (params.quantify_strand_bias) {
+    QUANTIFY_STRAND_BIAS (BOWTIE2_BUILD_ALIGN.out.bam, params.R1_antisense_orientation)
+    ch_strand_bias = ch_strand_bias.mix(QUANTIFY_STRAND_BIAS.out.strand_bias)
+  }
+
+  // tabulate mapping stats: samtools stats, coverage, and optionally per-base depth
+  def per_base_coverage = !params.skip_per_base_coverage
+  MAPPING_STATS(BOWTIE2_BUILD_ALIGN.out.bam_fasta, per_base_coverage)
+
+  // save consolidated output files
+  SAVE_COLLECTED_COVERAGE    (MAPPING_STATS.out.prepended_coverage.collectFile(name: "collected_per_refseq_coverage.tsv"){it[1]})
+  SAVE_COLLECTED_STATS       (MAPPING_STATS.out.prepended_stats.collectFile(name: "collected_stats.tsv"){it[1]})
+  SAVE_COLLECTED_DEPTH       (MAPPING_STATS.out.prepended_depth.collectFile(name: "collected_per_base_depth.tsv"){it[1]})
+  SAVE_COLLECTED_INSERT_SIZES(ch_insert_sizes.collectFile(name: "collected_insert_sizes.txt"){it[1]})
+  SAVE_COLLECTED_STRAND_BIAS (ch_strand_bias.collectFile(name: "collected_strand_bias.txt"){it[1]})
+
+  ch_coverage     = SAVE_COLLECTED_COVERAGE.out.file
+  ch_stats        = SAVE_COLLECTED_STATS.out.file
+  ch_depth        = SAVE_COLLECTED_DEPTH.out.file
+  ch_insert_sizes = SAVE_COLLECTED_INSERT_SIZES.out.file
+  ch_strand_bias  = SAVE_COLLECTED_STRAND_BIAS.out.file
+
+  // optional workflow to further process/analyze the main output files
+  if (params.process_workflow_output) {
+    PROCESS_WORKFLOW_OUTPUT(ch_coverage, ch_stats, ch_depth, ch_insert_sizes, ch_strand_bias)
+  }
+
+ emit:
+
+  bam          = BOWTIE2_BUILD_ALIGN.out.bam
+  bowtie2_log  = BOWTIE2_BUILD_ALIGN.out.bam
+  coverage     = ch_coverage
+  stats        = ch_stats
+  depth        = ch_depth
+  insert_sizes = ch_insert_sizes
+  strand_bias  = ch_strand_bias
 
 }
 
