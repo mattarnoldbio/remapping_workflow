@@ -1,6 +1,6 @@
 # remapping_workflow
 
-This is a nextflow workflow for remapping reads to sets of virus sequences.  In our lab we use it to validate virus sequences identified by metagenomic sequencing.  It could be used as a stand-alone pipeline or as a subworkflow.
+This is a nextflow workflow for remapping reads to sets of virus sequences.  In our lab we use it to validate virus sequences identified by metagenomic sequencing.  It also outputs mapping statistics and plots that can be used for downstream analyses related to read mapping.  It could be used as a stand-alone pipeline or as a subworkflow.  We designed this to be used for virus sequences but it could also be used for other purposes. 
 
 - [Running the pipeline](#Running-the-pipeline)
     - [Running from github](#Running-from-github)
