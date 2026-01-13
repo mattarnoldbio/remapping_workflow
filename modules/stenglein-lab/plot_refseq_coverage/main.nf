@@ -12,6 +12,7 @@ process PLOT_REFSEQ_COVERAGE {
 
   output:
   path "*.pdf"                       , emit: pdf
+  path "*.txt"                       , emit: txt
   // path "collected_coverage_plot.pdf" , emit: coverage_plot
 
   when:

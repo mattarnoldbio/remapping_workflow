@@ -50,6 +50,43 @@ window_size = 10
 # %/% is the integer division operator
 depth_df <- depth_df %>% mutate (window = position %/% window_size)
 
+############################################################
+# calculate and output statistics related to coverage depth
+############################################################
+
+# average per-refseq_dept
+avg_per_refseq_depth <- depth_df %>% 
+  group_by(dataset, reference_sequence) %>%
+  summarize(
+    mean_depth   = mean(depth),
+    median_depth = median(depth),
+    sd_depth     = sd(depth),
+    .groups      = "drop")
+
+median_per_refseq_depth <- median(avg_per_refseq_depth$median_depth)
+min_per_refseq_depth    <- min(avg_per_refseq_depth$median_depth)
+max_per_refseq_depth    <- max(avg_per_refseq_depth$median_depth)
+
+output_text <- ""
+output_text <- 
+  paste0(
+  "The median depth of coverage for Individual reference sequences was ",
+  sprintf("%0.0f", median_per_refseq_depth),
+  "x (range: ",
+  sprintf("%0.0f", min_per_refseq_depth),
+  "x - ",
+  sprintf("%0.0f", max_per_refseq_depth),
+  "x.")
+
+# output text re: coverage depth 
+output_file <-file(paste0(output_dir, "coverage_depth_stats.txt"))
+cat(output_text)
+writeLines(output_text, con=output_file)
+# close file
+close(output_file)
+
+############################################################
+
 # calculate average coverage depth in each window
 df_windowed <- depth_df %>% 
   group_by(dataset, reference_sequence, window)  %>% 
