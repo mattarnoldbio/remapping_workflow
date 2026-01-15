@@ -16,7 +16,7 @@ if (!interactive()) {
   # if running via RStudio
   depth_input           = "../results/save/collected_per_base_depth.tsv"
   R_lib_dir             = NA
-  output_dir            = "../results/process/"
+  output_dir            = "../results/plot/"
 }
 
 # this library will be available in the tidyverse singularity image we are using 
@@ -70,13 +70,13 @@ max_per_refseq_depth    <- max(avg_per_refseq_depth$median_depth)
 output_text <- ""
 output_text <- 
   paste0(
-  "The median depth of coverage for Individual reference sequences was ",
+  "The median depth of coverage for individual reference sequences was ",
   sprintf("%0.0f", median_per_refseq_depth),
   "x (range: ",
   sprintf("%0.0f", min_per_refseq_depth),
   "x - ",
   sprintf("%0.0f", max_per_refseq_depth),
-  "x.")
+  "x).")
 
 # output text re: coverage depth 
 output_file <-file(paste0(output_dir, "coverage_depth_stats.txt"))
@@ -166,19 +166,20 @@ plot_one_refseq <- function (dataset_refseq_names, number_plot_cols = 1) {
     filter(dataset  == dataset_to_plot & reference_sequence == refseq_to_plot)
   
   # convert any depth of 0 to 1, since plotting on a log10 y scale...
-  subset_df <- subset_df %>% mutate(depth = if_else(depth == 0, 1, depth))
+  # subset_df <- subset_df %>% mutate(depth = if_else(depth == 0, 1, depth))
+  subset_df <- subset_df %>% mutate(depth = if_else(depth == 0, NA, depth))
   
   # select only necessary columns
   subset_df <- subset_df %>% select(reference_sequence, depth, position)
   
   p <- ggplot(subset_df) + 
     geom_line(aes(x=position, y=depth), linewidth=0.5) +
-    geom_area(aes(x=position, y=depth), fill="lightgrey", alpha=0.5) +
+    geom_ribbon(aes(x=position, ymin = 1, ymax = depth), fill="lightgrey", alpha=0.5) +
     theme_bw(base_size = 10) +
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           panel.grid.minor.y = element_blank()) +
-    scale_y_log10() +
+    scale_y_log10(limits=c(1,NA)) +
     xlab("") +
     ylab ("coverage depth") +
     ggtitle(NULL, subtitle = paste0(dataset_to_plot, "-", refseq_to_plot)) +
