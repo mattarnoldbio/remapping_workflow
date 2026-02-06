@@ -123,7 +123,7 @@ plot_all_refseqs <- function(dataset_refseqs){
     pdf_list <- c(pdf_list, pdf_name)
     
     # generate & print plot
-    plot_datasets(subset_datasets, pdf_name)
+    plot_datasets(subset_datasets, pdf_name, plots_per_page)
     
     page_number = page_number + 1
   }
@@ -133,8 +133,9 @@ plot_all_refseqs <- function(dataset_refseqs){
 }
 
 # a function to create coverage plots for a certain number of datasets
-plot_datasets <- function(dataset_refseq_names, pdf_name = "test.pdf"){
+plot_datasets <- function(dataset_refseq_names, pdf_name = "test.pdf", plots_per_page){
   
+  # make the plots
   plots <- apply(dataset_refseq_names, 1, plot_one_refseq)
   
   page_p <- NULL
@@ -148,11 +149,34 @@ plot_datasets <- function(dataset_refseq_names, pdf_name = "test.pdf"){
   # since all x axes are the same
   page_p <- page_p + xlab("genome position (nt)")
   
+  # size of page 
+  page_h <- 11
+  page_w <- 8.5
+  page_u <- "in"
+
+  # size of normal page margins in inches (page_u)
+  top_margin    <- 0.25
+  left_margin   <- 0.25
+  right_margin  <- 0.25
+  bottom_margin <- 1
+
+  # add blank spacing so that the size of plots stays consistent on the last page
+  # when the last page has fewer plots
+  # increase margin if missing plots compared to expected # (e.g. last page)
+  missing_plots <- plots_per_page - nrow(dataset_refseq_names) 
+  if (missing_plots > 0) {
+    extra_margin  <- (missing_plots / plots_per_page) * (page_h - top_margin - bottom_margin)
+    bottom_margin <- bottom_margin + extra_margin
+  }
+  
+  # add margins, leaving space at bottom for fig legends
+  page_p <- page_p + plot_annotation(theme = theme(plot.margin = margin(t = top_margin, r = right_margin, l = left_margin, b = bottom_margin, unit = page_u)))
+  
   # output plot to console
   # print(page_p)
 
   # save a 1-page PDF
-  ggsave(pdf_name, page_p, height=10.5, width=7.5, units="in")
+  ggsave(pdf_name, page_p, height=page_h, width=page_w, units=page_u)
 }
 
 # a function to create on coverage plot
@@ -160,6 +184,12 @@ plot_one_refseq <- function (dataset_refseq_names, number_plot_cols = 1) {
   
   dataset_to_plot <- dataset_refseq_names[1]
   refseq_to_plot  <- dataset_refseq_names[2] 
+  
+  debug <- 0
+  if (debug) {
+    dataset_to_plot <- "1004277"
+    refseq_to_plot  <- "OR820562_Galbut_virus_RNA_1"
+  }
 
   # subset the main dataframes to get the data just for this dataset/reference_sequence
   subset_df <- df_windowed %>% 
@@ -184,7 +214,7 @@ plot_one_refseq <- function (dataset_refseq_names, number_plot_cols = 1) {
     ylab ("coverage depth") +
     ggtitle(NULL, subtitle = paste0(dataset_to_plot, "-", refseq_to_plot)) +
     theme(strip.text.y = element_text(angle = 0)) 
-   
+    
   # return the plot
   p
 }
