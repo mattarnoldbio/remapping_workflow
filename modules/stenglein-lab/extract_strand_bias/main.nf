@@ -3,10 +3,12 @@ process EXTRACT_STRAND_BIAS {
   label 'process_single'
 
   // singularity info for this process
-  if (workflow.containerEngine == 'singularity'){
-      container "https://depot.galaxyproject.org/singularity/perl:5.26.2"
-  }     
-
+  // if (workflow.containerEngine == 'singularity'){
+  //     container "https://depot.galaxyproject.org/singularity/perl:5.26.2"
+  // }     
+  container "${ workflow.containerEngine == 'singularity' ?
+    'https://depot.galaxyproject.org/singularity/perl:5.26.2' :
+    'perl:5.26.2' }"
   input:
   tuple val(meta), path (sam) 
   val(R1_antisense_orientation)

@@ -30,9 +30,10 @@ process SETUP_R_DEPENDENCIES {
   publishDir "${params.outdir}"
 
   // singularity info for this process
-  if (workflow.containerEngine == 'singularity'){
-      container "docker://rocker/tidyverse:4.3.2"
-  }
+  // if (workflow.containerEngine == 'singularity'){
+  //     container "docker://rocker/tidyverse:4.3.2"
+  // }
+  container "rocker/tidyverse:4.3.2"
 
   input:
   val (R_packages)        // a space-separated string of R package names to install (e.g.: "rstatix ggpubr") 

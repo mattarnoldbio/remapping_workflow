@@ -2,9 +2,10 @@ process PLOT_REFSEQ_COVERAGE {
   label 'process_single'
 
   // singularity info for this process
-  if (workflow.containerEngine == 'singularity'){
-      container "docker://rocker/tidyverse:4.3.2"
-  }     
+  // if (workflow.containerEngine == 'singularity'){
+  //     container "docker://rocker/tidyverse:4.3.2"
+  // }     
+  container "rocker/tidyverse:4.3.2"
 
   input:
   path (depth)
