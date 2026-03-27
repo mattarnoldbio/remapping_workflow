@@ -4,6 +4,9 @@ process CHECK_FASTQ_COMPRESSED {
 
     // this is all groovy so no containers needed
 
+    container 'quay.io/nextflow/bash'
+    
+
     input:
     tuple val(meta), path(files)                                                
 
