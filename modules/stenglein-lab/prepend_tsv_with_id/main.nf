@@ -4,7 +4,8 @@ process PREPEND_TSV_WITH_ID {
 
     // we just need a base linux environment for this module
     // which is an assumption of the nextflow pipeline
-
+    container 'quay.io/nextflow/bash'
+    
     input:
     tuple val(meta), path(tsv)                                                
 
