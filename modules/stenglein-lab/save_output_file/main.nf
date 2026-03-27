@@ -7,6 +7,8 @@ process SAVE_OUTPUT_FILE {
     tag "$file_to_save"
     label 'process_low'
 
+    container 'quay.io/nextflow/bash'
+    
     input:
     path(file_to_save, stageAs: "input/*")
 
