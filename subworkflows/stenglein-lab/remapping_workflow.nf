@@ -27,9 +27,16 @@ workflow REMAPPING_WORKFLOW {
   reads_ch       = MARSHAL_FASTQ.out.reads.map{meta, reads -> [meta.id, meta, reads]}
   samplesheet_ch = PARSE_MAPPING_SAMPLESHEET.out.sample_sheet.map{meta, fasta -> [meta.id, fasta]}
 
+  // 👇 DEBUG HERE
+  reads_ch.view { "READ: ${it[0]}" }
+  samplesheet_ch.view { "SHEET: ${it[0]}" }
+
   // drop just sample ID, bring back in original meta
   mapping_ch = reads_ch.join(samplesheet_ch).map{id, meta, reads, fasta -> [meta, reads, fasta] }
 
+  // 👇 DEBUG JOIN RESULT
+  mapping_ch.view { "JOINED: ${it[0]}" }
+  
   // run bowtie2 and align
   def save_unaligned = false
   def sort_bam = true
